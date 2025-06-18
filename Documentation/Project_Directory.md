@@ -39,7 +39,8 @@ Documentation/
 ├── Packet_Protocol.md
 ├── TroubleShooting_Log.md
 ├── Test_Strategy.md
-└── BuildInstructions.md
+├── BuildInstructions.md
+└── Requirements_Specification.md
 ```
 
 **`Documentation/` 폴더 내 문서 설명:**
@@ -51,6 +52,7 @@ Documentation/
 * **`TroubleShooting_Log.md`**: 프로젝트 개발 과정에서 발생했던 주요 기술적 문제들(예: 데드락, 메모리 누수, 성능 병목 등)과 이를 분석하고 해결했던 과정, 그리고 배운 점들을 상세히 기록한 문서입니다.
 * **`Test_Strategy.md`**: 단위 테스트, 통합 테스트, 부하 테스트 등 `ArcCore` 프로젝트의 테스트 전략과 수행 결과, 사용된 테스트 도구에 대한 정보를 설명합니다.
 * **`BuildInstructions.md`**: `ArcCore` 서버 및 클라이언트 프로젝트를 빌드하고 실행하기 위한 상세한 단계별 지침과 필요한 개발 환경 설정 방법을 안내합니다.
+* **`Requirements_Specification.md`**: `ArcCore` 프로젝트의 요구 사항 명세서를 담은 문서로, 기능 요구 사항, 성능 요구 사항 및 시스템 제약 사항 등을 정의합니다.
 
 ---
 
