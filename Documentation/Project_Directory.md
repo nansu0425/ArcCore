@@ -80,7 +80,7 @@ GameServer/
 * **`Network/`**: (Static Library Project) - IOCP 기반의 고성능 비동기 네트워크 통신을 전담하는 모듈입니다. 클라이언트 세션 관리, 리스너, 데이터 송수신 버퍼링, 패킷 조립/분해 등의 기능을 구현합니다.
 * **`PacketProtocol/`**: (Static Library Project) - Google Protobuf를 사용하여 정의된 `.proto` 파일들과 이를 통해 자동으로 생성된 C++ 패킷 클래스, 그리고 패킷을 효율적으로 처리하기 위한 핸들러 인터페이스 등을 관리합니다.
 * **`GameDB/`**: (Static Library Project) - MySQL 데이터베이스와의 연동을 담당하는 모듈입니다. DB 커넥션 풀, 비동기 쿼리 처리, 데이터 매니저 등 게임 데이터의 영속성을 관리하는 로직을 추상화합니다.
-* **`GameLogic/`**: (Static Library Project) - `ArcCore` 서버의 핵심 게임 규칙과 상태 변화를 처리하는 모듈입니다. 플레이어 관리, 월드/오브젝트 관리, 스킬 시스템, 인벤토리, NPC 상호작용 등 순수 게임 로직이 여기에 구현됩니다.
+* **`GameLogic/`**: (Static Library Project) - `ArcCore` 서버의 핵심 게임 규칙과 상태 변화를 처리하는 모듈입니다. 플레이어 관리, 월드/오브젝트 관리, 스킬 시스템, 인벤토리, NPC 상호작용, 몬스터 관리, 퀘스트 시스템 등 순수 게임 로직이 여기에 구현됩니다.
 * **`MainServer/`**: (Executable Project) - 위에 언급된 모든 정적 라이브러리들을 링크하여 최종적으로 게임 서버를 구동하는 실행 파일 프로젝트입니다. 서버의 진입점(main 함수)과 전역적인 초기화/종료 로직을 포함합니다.
 * **`DummyClient/`**: (Executable Project) - `MainServer`의 기능 테스트, 안정성 테스트, 그리고 동시 접속자 환경에서의 부하 테스트를 수행하기 위해 개발된 독립적인 C++ 더미 클라이언트입니다.
 * **`Test/`**: (Executable Project) - Google Test 프레임워크를 사용하여 `Common`, `PacketProtocol`, `GameDB` 등 서버의 개별 모듈 및 핵심 기능들의 정확성을 검증하는 단위 테스트 코드를 포함합니다.
