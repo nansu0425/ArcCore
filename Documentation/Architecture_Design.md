@@ -39,14 +39,12 @@ graph TD
     Database <-->|DB Operations| GameDBModule
 
     NetworkModule -- Publishes Client Packets --> EventBus
-    GameLogicModule -- Publishes Game Events & Packet Send Requests --> EventBus
+    GameLogicModule -- Publishes Game Events & Packet Send Requests & DB Requests --> EventBus
     GameDBModule -- Publishes DB Results --> EventBus
 
-    EventBus -- Dispatches Client Packets & Game Events --> GameLogicModule
-    EventBus -- Dispatches DB Events --> GameDBModule
+    EventBus -- Dispatches Client Packets & Game Events & DB Results --> GameLogicModule
+    EventBus -- Dispatches DB Requests --> GameDBModule
     EventBus -- Dispatches Packet Send Requests --> NetworkModule
-
-    GameLogicModule -->|Requests DB Operations| GameDBModule
 
     NetworkModule -.->|Uses Packet Protocol| PacketProtocolModule
     GameLogicModule -.->|Uses Packet Protocol| PacketProtocolModule
