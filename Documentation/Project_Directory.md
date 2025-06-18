@@ -46,7 +46,7 @@ Documentation/
 **`Documentation/` 폴더 내 문서 설명:**
 
 * **`Project_Directory.md`**: 현재 이 문서입니다. `ArcCore` 프로젝트의 전체적인 디렉터리 구조를 설명합니다.
-* **`Architecture_Design.md`**: `ArcCore` 서버의 전체적인 아키텍처 설계, 컴포넌트 간의 관계, 스레드 모델, 데이터 흐름 등에 대한 상세한 설명과 다이어그램을 포함합니다.
+* **`Architecture_Design.md`**: `ArcCore` 서버의 전체적인 아키텍처 설계 문서로, IOCP 기반 비동기 네트워크와 이벤트 드리븐 통신 모델을 중심으로 컴포넌트 간의 관계, 데이터 흐름, 스레드 모델 등을 상세히 설명합니다.
 * **`Database_Schema.md`**: MySQL 데이터베이스의 스키마 정의, 테이블 구조, 관계형 다이어그램(ERD) 등 데이터베이스 설계에 대한 정보를 제공합니다.
 * **`Packet_Protocol.md`**: Google Protobuf를 사용하여 정의된 패킷 구조, 각 패킷의 용도 및 데이터 형식에 대한 상세 설명을 담고 있습니다.
 * **`TroubleShooting_Log.md`**: 프로젝트 개발 과정에서 발생했던 주요 기술적 문제들(예: 데드락, 메모리 누수, 성능 병목 등)과 이를 분석하고 해결했던 과정, 그리고 배운 점들을 상세히 기록한 문서입니다.
@@ -76,11 +76,11 @@ GameServer/
 **`GameServer/` 폴더 내 프로젝트 및 리소스 설명:**
 
 * **`GameServer.sln`**: Visual Studio IDE에서 `ArcCore` 서버 프로젝트들을 관리하고 빌드하기 위한 솔루션 파일입니다.
-* **`Common/`**: (Static Library Project) - 서버의 모든 모듈에서 재사용되는 공통 유틸리티 클래스, 스레드 안전한 자료구조(메모리 풀, 오브젝트 풀, LockQueue, Logger 등), 전역 상수 및 매크로 등을 포함하는 기반 라이브러리입니다.
-* **`Network/`**: (Static Library Project) - IOCP 기반의 고성능 비동기 네트워크 통신을 전담하는 모듈입니다. 클라이언트 세션 관리, 리스너, 데이터 송수신 버퍼링, 패킷 조립/분해 등의 기능을 구현합니다.
-* **`PacketProtocol/`**: (Static Library Project) - Google Protobuf를 사용하여 정의된 `.proto` 파일들과 이를 통해 자동으로 생성된 C++ 패킷 클래스, 그리고 패킷을 효율적으로 처리하기 위한 핸들러 인터페이스 등을 관리합니다.
-* **`GameDB/`**: (Static Library Project) - MySQL 데이터베이스와의 연동을 담당하는 모듈입니다. DB 커넥션 풀, 비동기 쿼리 처리, 데이터 매니저 등 게임 데이터의 영속성을 관리하는 로직을 추상화합니다.
-* **`GameLogic/`**: (Static Library Project) - `ArcCore` 서버의 핵심 게임 규칙과 상태 변화를 처리하는 모듈입니다. 플레이어 관리, 월드/오브젝트 관리, 스킬 시스템, 인벤토리, NPC 상호작용, 몬스터 관리, 퀘스트 시스템 등 순수 게임 로직이 여기에 구현됩니다.
+* **`Common/`**: (Static Library Project) - 서버의 모든 모듈에서 재사용되는 공통 유틸리티 클래스, 스레드 안전한 자료구조(메모리 풀, 오브젝트 풀, LockQueue, Logger 등), 전역 상수 및 매크로 등을 포함하는 기반 라이브러리입니다. 또한, 서버 컴포넌트 간의 이벤트 기반 통신을 위한 **이벤트 버스(EventBus)** 및 기본 이벤트 클래스를 구현합니다.
+* **`Network/`**: (Static Library Project) - IOCP 기반의 고성능 비동기 네트워크 통신을 전담하는 모듈입니다. 클라이언트 세션 관리, 리스너, 데이터 송수신 버퍼링, 패킷 조립/분해 등의 기능을 구현합니다. 이 모듈은 수신된 패킷을 이벤트로 변환하여 발행하고, 다른 모듈의 요청 이벤트를 구독하여 패킷을 전송하는 역할을 합니다.
+* **`PacketProtocol/`**: (Static Library Project) - Google Protobuf를 사용하여 정의된 `.proto` 파일들과 이를 통해 자동으로 생성된 C++ 패킷 클래스를 관리합니다. 네트워크 및 게임 로직 모듈 간의 통신에 사용되는 범용 이벤트 클래스(예: `ClientPacketReceivedEvent`, `NetworkSendRequestEvent`)를 정의합니다.
+* **`GameDB/`**: (Static Library Project) - MySQL 데이터베이스와의 연동을 담당하는 모듈입니다. DB 커넥션 풀, 비동기 쿼리 처리, 데이터 매니저 등 게임 데이터의 영속성을 관리하는 로직을 추상화합니다. 이 모듈은 DB 쿼리 요청 이벤트를 구독하고, 쿼리 완료 후 결과를 담은 이벤트를 발행합니다.
+* **`GameLogic/`**: (Static Library Project) - `ArcCore` 서버의 핵심 게임 규칙과 상태 변화를 처리하는 모듈입니다. 플레이어 관리, 월드/오브젝트 관리, 스킬 시스템, 인벤토리, NPC 상호작용, 몬스터 관리, 퀘스트 시스템 등 순수 게임 로직이 여기에 구현됩니다. 클라이언트 패킷 및 DB 결과 이벤트를 구독하여 로직을 수행하고, 게임 상태 변화 및 클라이언트 응답 요청을 이벤트로 발행합니다.
 * **`MainServer/`**: (Executable Project) - 위에 언급된 모든 정적 라이브러리들을 링크하여 최종적으로 게임 서버를 구동하는 실행 파일 프로젝트입니다. 서버의 진입점(main 함수)과 전역적인 초기화/종료 로직을 포함합니다.
 * **`DummyClient/`**: (Executable Project) - `MainServer`의 기능 테스트, 안정성 테스트, 그리고 동시 접속자 환경에서의 부하 테스트를 수행하기 위해 개발된 독립적인 C++ 더미 클라이언트입니다.
 * **`Test/`**: (Executable Project) - Google Test 프레임워크를 사용하여 `Common`, `PacketProtocol`, `GameDB` 등 서버의 개별 모듈 및 핵심 기능들의 정확성을 검증하는 단위 테스트 코드를 포함합니다.
