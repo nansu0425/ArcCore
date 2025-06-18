@@ -36,7 +36,7 @@ graph TD
     end
 
     Client <-->|Packets| NetworkModule
-    Database <-->|DB Operations| GameDBModule
+    Database <-->|MySQL Protocol via Connector/C++| GameDBModule
 
     NetworkModule -- Publishes Client Packets --> EventBus
     GameLogicModule -- Publishes Game Events & Packet Send Requests & DB Requests --> EventBus
