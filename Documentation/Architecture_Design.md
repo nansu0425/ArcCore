@@ -18,12 +18,10 @@
 
 ```mermaid
 graph TD
-    subgraph External_Systems
-        Client[Unity Client]
-        Database[(MySQL Database)]
-    end
+    Client[Unity Client]
+    Database[(MySQL Database)]
 
-    subgraph ArcCore_GameServer
+    subgraph GameServer
         NetworkModule[Network Module]
         GameLogicModule[Game Logic Module]
         GameDBModule[GameDB Module]
@@ -36,7 +34,7 @@ graph TD
     end
 
     Client <-->|Packets| NetworkModule
-    Database <-->|MySQL Protocol via Connector/C++| GameDBModule
+    Database <-->|MySQL Connector/C++| GameDBModule
 
     NetworkModule -- Publishes Client Packets --> EventBus
     GameLogicModule -- Publishes Game Events & Packet Send Requests & DB Requests --> EventBus
@@ -50,84 +48,68 @@ graph TD
     GameLogicModule -.->|Uses Packet Protocol| PacketProtocolModule
 ```
 
-## 4. 주요 컴포넌트 및 역할
+## 4. 주요 모듈 및 역할
 
-각 모듈은 명확한 책임을 가지며 EventBus를 통해 소통합니다.
+### 4.1. Common 모듈
 
-### 4.1. `MainServer` (Executable)
+* **역할**: 프로젝트 전반에 걸쳐 사용되는 공통 기능, 유틸리티, 자료 구조 및 핵심 인터페이스를 정의합니다. 시스템의 심장부인 **이벤트 버스**를 포함하며, 모든 모듈 간의 통신을 중재합니다.
+* **포함 기능**:
+    * **이벤트 버스 (Event Bus)**: 발행-구독(Publish-Subscribe) 패턴을 구현하여 모듈 간의 비동기적이고 느슨한 결합 통신을 지원합니다. 모든 중요한 시스템 이벤트와 게임 로직 이벤트가 이 버스를 통해 전달됩니다.
+    * **로깅 (Logging)**: `spdlog` 기반의 고성능 로깅 시스템을 제공하여 서버의 모든 동작, 오류, 디버그 정보를 기록합니다.
+    * **공통 유틸리티**: 시간 관리, 자료구조(예: Lock-Free 큐, 오브젝트 풀) 등 범용적으로 사용되는 헬퍼 함수 및 클래스를 정의합니다.
+    * **쓰레딩 유틸리티**: 스레드 로컬 저장소, 스레드 풀 관리 등 멀티쓰레딩 환경에서 필요한 유틸리티를 제공합니다.
+    * **타입 정의**: 프로젝트 전반에서 사용될 고정 폭 정수 및 명시적 실수 타입 정의를 포함합니다.
 
-* **역할**: 서버의 진입점. 모든 라이브러리(Common, Network, PacketProtocol, GameDB, GameLogic)를 링크하고, 서버 초기화 및 메인 루프를 실행합니다.
+### 4.2. Network 모듈
 
-### 4.2. `Common` (Static Library)
+* **역할**: 클라이언트와의 네트워크 통신을 전담합니다. IOCP 기반의 비동기 I/O 모델을 사용하여 다수의 동시 접속을 효율적으로 처리합니다.
+* **포함 기능**:
+    * **IOCP 구현**: 고성능 및 확장성을 위한 윈도우 IOCP(I/O Completion Port) 모델을 사용합니다.
+    * **세션 관리**: 접속한 클라이언트별 세션을 생성하고 관리하며, 연결/연결 해제 및 데이터 송수신을 담당합니다.
+    * **패킷 처리**: Google Protobuf를 사용하여 클라이언트로부터 수신된 데이터를 역직렬화하고, 서버에서 클라이언트로 전송할 데이터를 직렬화합니다.
+    * **이벤트 발행**: 패킷 수신 시 `Common` 모듈의 이벤트 버스를 통해 해당 패킷 수신 이벤트를 발행하여 `GameLogic` 또는 다른 관련 모듈에 전달합니다.
+    * **이벤트 구독**: 다른 모듈(주로 `GameLogic`)로부터 네트워크 전송 요청 이벤트를 구독하여 실제 클라이언트로 데이터를 전송합니다.
 
-* **역할**: 서버 전반에 걸쳐 공통적으로 사용되는 기반 유틸리티 및 **이벤트 시스템의 핵심 구성 요소**를 제공합니다. 모든 다른 서버 모듈은 `Common` 모듈이 제공하는 기능을 암시적으로 활용합니다.
-* **주요 기능**:
-    * **EventBus**: 중앙 집중식 이벤트 발행/구독 허브 (스레드-안전한 이벤트 큐 포함).
-    * **BaseEvent**: 모든 구체적인 이벤트의 추상 기본 클래스/인터페이스.
-    * 메모리 풀, 스레드-안전 자료구조, 로깅 시스템, 타이머 관리 등.
+### 4.3. GameLogic 모듈
 
-### 4.3. `Network` (Static Library)
+* **역할**: 게임의 핵심 로직을 수행합니다. 클라이언트의 요청을 처리하고, 게임 월드 상태를 관리하며, 게임 규칙에 따라 플레이어와 아이템 등의 상호작용을 처리합니다.
+* **포함 기능**:
+    * **게임 월드 관리**: 플레이어, 몬스터, 아이템 등 모든 게임 오브젝트의 상태 및 위치 정보를 관리합니다.
+    * **이벤트 구독/발행**: `Network` 모듈로부터 수신된 클라이언트 패킷 이벤트를 구독하여 처리하고, 처리 결과를 다시 `Network` 모듈로 전송하기 위한 이벤트를 발행합니다. 또한, 내부 게임 상태 변화에 따른 다양한 게임 도메인 이벤트를 발행합니다.
+    * **NPC/AI 로직**: NPC의 행동 패턴, AI 계산 등을 담당합니다.
+    * **스킬/전투 로직**: 플레이어 및 몬스터 간의 전투 시스템, 스킬 사용 및 효과 등을 처리합니다.
+    * **재화/인벤토리 관리**: 게임 내 재화, 아이템 획득 및 사용, 인벤토리 관리 등을 담당합니다.
+    * **비즈니스 로직 처리**: 게임의 모든 규칙과 상호작용이 여기서 처리됩니다.
 
-* **역할**: IOCP 기반의 비동기 네트워크 통신을 전담합니다. 클라이언트 세션 관리 및 패킷 송수신을 처리합니다.
-* **주요 기능**:
-    * IOCP 및 Winsock API 래핑, 세션 관리.
-    * 수신된 패킷을 `PacketProtocol`에 정의된 **클라이언트 패킷 수신 이벤트**로 변환하여 `EventBus`에 발행.
-    * `PacketProtocol`에 정의된 **네트워크 전송 요청 이벤트**를 구독하여 패킷 직렬화 후 클라이언트에 전송.
-    * **상위 도메인 모듈(GameLogic, GameDB)에 직접 의존하지 않습니다.**
+### 4.4. GameDB 모듈
 
-### 4.4. `PacketProtocol` (Static Library)
+* **역할**: 게임 데이터를 데이터베이스(MySQL)에 영속적으로 저장하고 로드하는 역할을 전담합니다.
+* **포함 기능**:
+    * **데이터베이스 연동**: MySQL Connector/C++ 라이브러리를 사용하여 MySQL 8.0 데이터베이스에 직접 연결하고 최적화된 SQL 쿼리를 실행합니다.
+    * **비동기 DB 처리**: 데이터베이스 I/O 작업이 메인 스레드를 블로킹하지 않도록 비동기 처리 메커니즘을 사용합니다. 별도의 DB 워커 스레드 풀을 통해 요청을 처리하고 결과를 이벤트 버스를 통해 다시 발행합니다.
+    * **이벤트 구독/발행**: `GameLogic` 모듈로부터 데이터 저장/로드 요청 이벤트를 구독하고, DB 작업 완료 후 결과를 `GameLogic` 모듈로 통보하는 이벤트를 발행합니다.
 
-* **역할**: Google Protobuf를 사용한 클라이언트-서버 통신 패킷 구조를 정의하고, **네트워크 송수신 관련 범용 이벤트 클래스를 정의**합니다. 이 모듈은 `Common` 모듈의 `BaseEvent`를 사용하지만, 다이어그램에서는 시각적 간결성을 위해 직접적인 `Uses` 화살표는 생략합니다.
-* **주요 기능**:
-    * `.proto` 파일 정의 및 Protobuf C++ 코드 자동 생성.
-    * `Network`와 `GameLogic` 간의 느슨한 결합을 위한 `ClientPacketReceivedEvent<PacketType>` 및 `NetworkSendRequestEvent<PacketType>` 정의.
+## 5. 이벤트 버스를 통한 모듈 간 통신
 
-### 4.5. `GameDB` (Static Library)
+`ArcCore`의 핵심 아키텍처는 **이벤트 버스**를 중심으로 모듈들이 느슨하게 결합되어 통신하는 방식입니다.
 
-* **역할**: MySQL 데이터베이스 연동을 담당하며, 게임 데이터의 영속성 관리를 위한 추상화 계층을 제공합니다.
-* **주요 기능**:
-    * DB 커넥션 풀, 비동기 쿼리 시스템.
-    * `EventBus`로부터 DB 쿼리 요청 이벤트를 구독하여 DB 쿼리 수행.
-    * 쿼리 완료 후 결과를 담은 이벤트(e.g., `LoginDBResultEvent`)를 `EventBus`에 발행.
-
-### 4.6. `GameLogic` (Static Library)
-
-* **역할**: 서버의 핵심 게임 규칙과 상태 변화를 처리합니다. `EventBus`를 통해 다양한 이벤트를 구독하고 게임 로직을 수행하며, 게임 상태 변화를 이벤트로 발행합니다.
-* **주요 기능**:
-    * `PacketProtocol`의 `ClientPacketReceivedEvent`를 구독하여 처리하며, 이를 **게임 도메인 이벤트로 변환하여 재발행** (예: `C_MOVE_PACKET` -> `PlayerMoveRequestEvent`).
-    * 게임 로직 수행 후 `PlayerMovedEvent`와 같은 도메인 이벤트 발행.
-    * 클라이언트에 응답 시, `PacketProtocol`의 `NetworkSendRequestEvent`를 생성하여 `EventBus`에 발행.
-    * 전투, 인벤토리, 채팅, 몬스터, NPC, 퀘스트 등 다양한 게임 시스템 구현.
-
-## 5. 이벤트 버스 (핵심 요소)
-
-* **역할**: `Common` 모듈 내에 구현된 `ArcCore` 아키텍처의 중심축으로, 모든 컴포넌트 간의 비동기 통신을 담당합니다. 이벤트를 발행하고, 해당 이벤트를 구독하는 모든 핸들러에게 전달합니다.
-* **구현**: 싱글톤 패턴으로 구현되며, 내부에 스레드-안전한 이벤트 큐를 유지하여 발행/소비를 분리합니다. `BaseEvent` 타입을 기반으로 동작하여 구체적인 이벤트 타입에는 의존하지 않습니다.
+* **낮은 결합도**: 각 모듈은 특정 이벤트에만 의존하며, 다른 모듈의 내부 구현에 직접적으로 의존하지 않습니다.
+* **높은 확장성**: 새로운 기능을 추가할 때 기존 모듈을 수정하는 대신, 새로운 모듈을 추가하거나 기존 모듈에서 발행하는 이벤트를 구독하여 쉽게 확장할 수 있습니다.
+* **비동기 처리**: 이벤트 발행 시 즉시 처리되지 않고, 이벤트 핸들러가 별도의 스레드나 다음 이벤트 루프에서 처리될 수 있어 블로킹을 최소화하고 성능을 향상시킵니다.
+* **명확한 책임 분리**: 각 모듈은 자신의 핵심 책임에만 집중하며, 다른 모듈의 특정 함수를 직접 호출하는 대신 이벤트를 발행하여 메시지를 전달합니다.
 
 ## 6. 데이터 흐름 (플레이어 이동)
 
-1.  **클라이언트 -> Network**: Unity 클라이언트가 이동 패킷(`C_MOVE_PACKET`)을 서버로 전송.
-2.  **Network 모듈**: 패킷 수신 및 역직렬화 후, `PacketProtocol`에 정의된 **클라이언트 패킷 수신 이벤트**를 생성하여 `EventBus`에 발행.
-3.  **EventBus -> GameLogic**: 클라이언트 패킷 수신 이벤트를 `GameLogic`의 핸들러에게 전달. `GameLogic`은 이벤트를 받아 **게임 도메인 이벤트로 변환** (예: `PlayerMoveRequestEvent`)하여 다시 `EventBus`에 재발행.
+플레이어 이동 요청을 예시로 이벤트 버스를 통한 데이터 흐름을 설명합니다.
+
+1.  **클라이언트 -> Network**: Unity 클라이언트가 이동 패킷(`C_MOVE_PACKET`)을 서버로 전송합니다.
+2.  **Network 모듈**: 패킷 수신 및 역직렬화 후, `PacketProtocol`에 정의된 **클라이언트 패킷 수신 이벤트**를 생성하여 `EventBus`에 발행합니다.
+3.  **EventBus -> GameLogic**: 클라이언트 패킷 수신 이벤트를 `GameLogic`의 핸들러에게 전달. `GameLogic`은 이벤트를 받아 **게임 도메인 이벤트로 변환** (예: `PlayerMoveRequestEvent`)하여 다시 `EventBus`에 재발행합니다.
 4.  **GameLogic 모듈**:
     * `PlayerMoveRequestEvent`와 같은 게임 도메인 이벤트를 구독하여 처리. (선택적으로 성능 최적화를 위해 직접 호출 가능)
     * 이동 유효성 검사 및 위치 업데이트 수행.
     * 이동 완료 후 `PlayerMovedEvent`를 `EventBus`에 발행.
-    * 클라이언트에 응답을 위해 응답 패킷(`S_MOVE_PACKET`)을 생성하고, `PacketProtocol`에 정의된 **네트워크 전송 요청 이벤트**를 생성하여 `EventBus`에 발행.
+    * 클라이언트에 응답을 위해 응답 패킷(`S_MOVE_PACKET`)을 생성하고, `PacketProtocol`에 정의된 **네트워크 전송 요청 이벤트**를 생성하여 `EventBus`에 발행합니다.
 5.  **EventBus -> Network**: 네트워크 전송 요청 이벤트를 `Network` 모듈로 전달.
 6.  **Network 모듈**: 네트워크 전송 요청 이벤트를 구독. 내부 패킷을 직렬화하여 해당 클라이언트 세션에 전송.
-7.  **GameDB 모듈 (선택적)**: `GameLogic`이 `SavePlayerLocationRequestEvent`를 발행하면, `GameDB`가 구독하여 DB 작업 수행 후 `PlayerLocationSavedEvent` 발행.
-
-## 7. 스레드 모델
-
-`ArcCore` 서버는 IOCP 기반의 비동기 I/O와 이벤트 기반 스레드 처리를 결합한 모델을 사용합니다.
-
-* **I/O 스레드**: `Network` 모듈에서 IOCP 이벤트를 처리하고, 수신 데이터를 패킷화하여 `EventBus`에 발행.
-* **메인 게임 로직 스레드**: 대부분의 게임 로직 이벤트를 `EventBus`로부터 구독하여 순차적으로 처리, 게임 상태 일관성 유지.
-* **DB 스레드 풀**: `GameDB` 모듈에서 DB 요청 이벤트를 구독하여 비동기 DB 작업 수행 후 DB 결과 이벤트를 발행.
-
-## 8. 빌드 및 배포 아키텍처
-
-* **vcpkg**: 외부 라이브러리(spdlog, Protobuf, MySQL Connector 등) 의존성을 `vcpkg.json`으로 관리.
-* **Visual Studio Solution**: 모든 서버 프로젝트 통합 관리 및 빌드.
-* **CI/CD (향후)**: GitHub Actions 등을 통한 자동 빌드, 테스트, 배포 파이프라인 구축 고려.
+7.  **GameDB 모듈**: 만약 플레이어 이동이 특정 조건(예: 지역 변경)에서 데이터베이스 업데이트를 필요로 한다면, `GameLogic`은 `GameDB` 모듈에 해당 업데이트 요청 이벤트를 발행하고, `GameDB`는 이를 처리한 후 완료 이벤트를 발행하여 `GameLogic`에 통보합니다. 이 경우 `GameDB`는 메인 스레드를 블로킹하지 않도록 비동기적으로 처리됩니다.
